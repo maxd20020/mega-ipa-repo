@@ -1,0 +1,53 @@
+name: Mega IPA Auto Merge (Stable)
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Fetch sources safely
+        run: |
+          curl -L https://ipa.cypwn.xyz/cypwn.json -o a.json || echo '{"apps":[]}' > a.json
+          curl -L https://raw.githubusercontent.com/swaggyP36000/TrollStore-IPAs/main/apps.json -o b.json || echo '{"apps":[]}' > b.json
+          curl -L https://wuxu1.github.io/wuxu-complete.json -o c.json || echo '{"apps":[]}' > c.json
+          curl -L https://repo.apptesters.org -o d.json || echo '{"apps":[]}' > d.json
+          curl -L https://qnblackcat.github.io/AltStore/apps.json -o e.json || echo '{"apps":[]}' > e.json
+          curl -L https://repo.starfiles.co -o f.json || echo '{"apps":[]}' > f.json
+
+      - name: Merge safely (no crashes)
+        run: |
+          jq -s '
+          {
+            name: "Ultimate Mega IPA Repo",
+            identifier: "com.maxed.repo",
+            apps: (
+              map(
+                if (.apps and (.apps | type == "array"))
+                then .apps
+                else []
+                end
+              ) | add | unique_by(.bundleIdentifier)
+            )
+          }' *.json > apps.json
+
+      - name: Commit updated repo
+        run: |
+          git config --global user.name "mega-bot"
+          git config --global user.email "bot@github.com"
+          git add apps.json
+          git commit -m "Auto update IPA repo" || echo "No changes"
+          git push
